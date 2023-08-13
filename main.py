@@ -4,10 +4,16 @@ from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from config import TELEGRAM_TOKEN
 from handlers import Handlers
-from database import create_pool
+import database
+
+
 
 async def init(dp):
-    pool = await create_pool()
+    # Создание пула соединений
+    pool = await database.create_pool()
+
+    # Создание таблиц, если они не существуют
+    await database.create_tables()
     handlers = Handlers(pool)
 
     dp.register_message_handler(handlers.start_command, commands=["start"])
