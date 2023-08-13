@@ -59,13 +59,13 @@ class Handlers:
 
     async def stats(self, message: types.Message):
         user_count = await get_user_count(self.pool)
-        await message.answer(f"Количество пользователей: {user_count}")
+        await message.answer(f"Кількість користувачів: {user_count}")
 
     async def start_broadcast(self, message: types.Message):
         if not await is_admin(self.pool, message.from_user.id):
-            await message.reply("Вы не являетесь администратором!")
+            await message.reply("Ви не є адміністратором!")
             return
-        await message.reply("Пожалуйста, напишите сообщение, которое нужно разослать:")
+        await message.reply("Будь ласка, напишіть повідомлення, яке потрібно розіслати:")
 
     async def process_broadcast_message(self, message: types.Message):
         text_to_broadcast = message.text
@@ -75,9 +75,9 @@ class Handlers:
             try:
                 await self.bot.send_message(user_id, text_to_broadcast)
             except Exception as e:
-                print(f"Failed to send message to {user_id}: {e}")
+                print(f"Не вдалося відправити повідомлення на адресу {user_id}: {e}")
 
-        await message.reply("Сообщение успешно отправлено всем пользователям!")
+        await message.reply("Повідомлення успішно відправлено всім користувачам!")
 
 
 
