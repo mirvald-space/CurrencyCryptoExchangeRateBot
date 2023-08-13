@@ -15,3 +15,4 @@ CACHE_TIMEOUT = 3600  # Примерное время жизни кеша, в с
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 # Загрузка переменных окружения
 DATABASE_URL= os.getenv("DATABASE_URL")
+ADMIN_ID=os.getenv("ADMIN_ID")
