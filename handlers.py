@@ -1,5 +1,4 @@
 from aiogram import types
-import database
 from config import ADMIN_ID
 from api import get_exchange_rate, get_crypto_rate
 from database import add_new_user, get_user_count, get_all_users, is_admin

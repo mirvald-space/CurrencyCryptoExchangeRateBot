@@ -1,7 +1,6 @@
 import aiohttp
 import logging
 import time
-import json
 from config import MONOBANK_URL, CACHE_TIMEOUT
 
 # Глобальные переменные для кеширования
