@@ -14,6 +14,7 @@ class Handlers:
     async def start_command(self, message: types.Message):
         user_id = message.from_user.id
         await add_new_user(self.pool, user_id)
+        await self.update_last_activity(user_id)
         markup = await self.generate_main_menu_markup()
         await message.answer("Привіт! Цей бот показує актуальний курс фіатних валют і криптовалют.", reply_markup=markup)
 
@@ -25,10 +26,15 @@ class Handlers:
         return markup
 
     async def currency_rates(self, message: types.Message):
-        usd_uah = await get_exchange_rate('USD')
-        eur_uah = await get_exchange_rate('EUR')
+        usd_uah = await get_exchange_rate(840)  # USD
+        eur_uah = await get_exchange_rate(978)  # EUR
+
+        if usd_uah is None or eur_uah is None:
+            await message.answer("Вибачте, не вдалося отримати курси валют. Спробуйте пізніше.")
+            return
+
         await message.answer(
-            f"<b>🇺🇦 Українська гривня</b>\n\n🇺🇸 USD/UAH <b>{usd_uah} </b> \n🇪🇺 EUR/UAH <b>{eur_uah}</b>\n\n" 
+            f"<b>🇺🇦 Українська гривня</b>\n\n 🇺🇸USD/UAH <b>{usd_uah} </b> \n🇪🇺 EUR/UAH <b>{eur_uah}</b>\n\n"
             f"Актуальні курси: @ExchangeMonitorBot",
             parse_mode='HTML')
 
@@ -57,9 +63,38 @@ class Handlers:
         )
         await message.answer(contact_admin_text.format(admin_id=ADMIN_ID), parse_mode="Markdown")
 
+    async def get_active_user_count(self):
+        async with self.pool.acquire() as connection:
+            query = """
+            SELECT COUNT(*)
+            FROM users
+            WHERE last_activity > NOW() - INTERVAL '7 days'
+            """
+            active_user_count = await connection.fetchval(query)
+            return active_user_count
+
     async def stats(self, message: types.Message):
+        if message.from_user.id != ADMIN_ID:
+            await message.answer("У вас нет прав доступа к этой команде.")
+            return
+
         user_count = await get_user_count(self.pool)
-        await message.answer(f"Кількість користувачів: {user_count}")
+        active_user_count = await get_active_user_count(self.pool)
+
+        response = (
+            f"Кількість користувачів: {user_count}\n"
+            f"Кількість активних користувачів: {active_user_count}"
+        )
+        await message.answer(response)
+
+    async def update_last_activity(self, user_id):
+        async with self.pool.acquire() as connection:
+            query = """
+            UPDATE users
+            SET last_activity = NOW()
+            WHERE id = $1
+            """
+            await connection.execute(query, user_id)
 
     async def start_broadcast(self, message: types.Message):
         if not await is_admin(self.pool, message.from_user.id):
