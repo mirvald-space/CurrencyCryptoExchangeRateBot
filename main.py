@@ -8,54 +8,49 @@ import database
 import fcntl
 import sys
 
-# Попытка заблокировать файл
+
+class SingletonBot:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.bot = Bot(token=TELEGRAM_TOKEN)
+            cls._instance.dp = Dispatcher(
+                cls._instance.bot, storage=MemoryStorage())
+            cls._instance.init_handlers()
+        return cls._instance
+
+    def init_handlers(self):
+        pool = asyncio.get_event_loop().run_until_complete(database.create_pool())
+        handlers = Handlers(pool, self.bot)
+
+        self.dp.register_message_handler(
+            handlers.start_command, commands=["start"])
+        self.dp.register_message_handler(
+            handlers.currency_rates, lambda message: message.text == "🇺🇦Курс валют")
+        self.dp.register_message_handler(
+            handlers.stats, lambda message: message.text == "📊Статистика")
+        self.dp.register_message_handler(
+            handlers.crypto, lambda message: message.text == "🤑Курс криптовалют")
+        self.dp.register_message_handler(
+            handlers.ads, lambda message: message.text == "✉️Реклама")
+        self.dp.register_message_handler(
+            handlers.start_broadcast, lambda message: message.text.startswith("/broadcast"))
+        self.dp.register_message_handler(handlers.process_broadcast_message)
 
 
-def lock_file(file):
-    try:
-        fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return True
-    except BlockingIOError:
-        return False
+class BotSingleton(SingletonBot):
+    pass
 
 
-async def init(dp):
-    # Создание пула соединений
-    pool = await database.create_pool()
-
-    # Создание таблиц, если они не существуют
-    await database.create_tables()
-
-    bot = Bot(token=TELEGRAM_TOKEN)  # Создаем объект bot
-    handlers = Handlers(pool, bot)
-
-    dp.register_message_handler(handlers.start_command, commands=["start"])
-    dp.register_message_handler(
-        handlers.currency_rates, lambda message: message.text == "🇺🇦Курс валют")
-    dp.register_message_handler(
-        handlers.stats, lambda message: message.text == "📊Статистика")
-    dp.register_message_handler(
-        handlers.crypto, lambda message: message.text == "🤑Курс криптовалют")
-    dp.register_message_handler(
-        handlers.ads, lambda message: message.text == "✉️Реклама")
-    dp.register_message_handler(
-        handlers.start_broadcast, lambda message: message.text.startswith("/broadcast"))
-    dp.register_message_handler(handlers.process_broadcast_message)
-
-logging.basicConfig(level=logging.INFO)
-bot = Bot(token=TELEGRAM_TOKEN)
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
-
-if __name__ == '__main__':
-    lockfile = open('/tmp/bot.lock', 'w')
-    if not lock_file(lockfile):
-        print("Another instance is already running. Exiting.")
-        sys.exit(1)
+def main():
+    logging.basicConfig(level=logging.INFO)
+    bot_instance = BotSingleton()
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(init(dp))
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(bot_instance.dp, skip_updates=True)
 
-    # Освобождаем блокировку перед выходом
-    lockfile.close()
+
+if __name__ == '__main__':
+    main()
