@@ -1,3 +1,4 @@
-myenv
+.monoenv
+__pycache__
 .env
 .idea

@@ -5,8 +5,6 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from config import TELEGRAM_TOKEN
 from handlers import Handlers
 import database
-import fcntl
-import sys
 
 
 class SingletonBot:
@@ -49,6 +47,7 @@ def main():
     bot_instance = BotSingleton()
 
     loop = asyncio.get_event_loop()
+    loop.run_until_complete(database.create_tables())
     executor.start_polling(bot_instance.dp, skip_updates=True)
 
 

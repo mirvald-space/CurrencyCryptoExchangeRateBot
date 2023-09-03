@@ -8,8 +8,8 @@ cached_rates = None
 last_updated = 0
 
 
-
-async def get_exchange_rate(currency_code: int) -> float:  # Обратите внимание, что тип изменился на int
+# Обратите внимание, что тип изменился на int
+async def get_exchange_rate(currency_code: int) -> float:
     global cached_rates, last_updated
 
     if cached_rates is None or time.time() - last_updated >= CACHE_TIMEOUT:
@@ -30,7 +30,7 @@ async def get_exchange_rate(currency_code: int) -> float:  # Обратите в
 
     for rate in cached_rates:
         if rate['currencyCodeA'] == currency_code:  # Ищем по коду валюты
-            return float(rate['rateBuy']) # Возвращаем курс покупки
+            return float(rate['rateBuy'])  # Возвращаем курс покупки
 
     logging.error(f"Курс валюты {currency_code} не найден")
     return None

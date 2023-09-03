@@ -1,8 +1,12 @@
 from aiogram import types
 from config import ADMIN_ID
 from api import get_exchange_rate, get_crypto_rate
-from database import add_new_user, get_user_count, get_all_users, is_admin
+from database import add_new_user, get_user_count, get_all_users, is_admin, update_last_activity
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+
+# Константы для кодов валют
+USD = 840
+EUR = 978
 
 
 class Handlers:
@@ -13,20 +17,23 @@ class Handlers:
     async def start_command(self, message: types.Message):
         user_id = message.from_user.id
         await add_new_user(self.pool, user_id)
-        await self.update_last_activity(user_id)
+        await update_last_activity(self.pool, user_id)
         markup = await self.generate_main_menu_markup()
         await message.answer("Привіт! Цей бот показує актуальний курс фіатних валют і криптовалют.", reply_markup=markup)
 
     async def generate_main_menu_markup(self):
+        """
+        Генерирует клавиатуру для главного меню.
+        """
         markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         for item in [("🇺🇦Курс валют", "currency_rates"), ("🤑Курс криптовалют", "crypto"), ("📊Статистика", "stats"),
-                     ("✉️Реклама", "ads"), ]:
+                     ("✉️Реклама", "ads")]:
             markup.insert(KeyboardButton(item[0]))
         return markup
 
     async def currency_rates(self, message: types.Message):
-        usd_uah = await get_exchange_rate(840)  # USD
-        eur_uah = await get_exchange_rate(978)  # EUR
+        usd_uah = await get_exchange_rate(USD)
+        eur_uah = await get_exchange_rate(EUR)
 
         if usd_uah is None or eur_uah is None:
             await message.answer("Вибачте, не вдалося отримати курси валют. Спробуйте пізніше.")
@@ -52,7 +59,7 @@ class Handlers:
                    f"🔹 Dogecoin (DOGE): ${doge_rate}\n" \
                    f"🔹 Cardano (ADA): ${ada_rate}\n" \
                    f"🔹 Solana (ETH): ${sol_rate}\n\n"\
-                    f"Актуальні курси: @ExchangeMonitorBot"
+            f"Актуальні курси: @ExchangeMonitorBot"
         await message.answer(response, parse_mode='HTML')
 
     async def ads(self, message: types.Message):
@@ -61,6 +68,20 @@ class Handlers:
             "\n\n👤 [Зв'язатися з адміном](tg://user?id={admin_id})"
         )
         await message.answer(contact_admin_text.format(admin_id=ADMIN_ID), parse_mode="Markdown")
+
+    async def stats(self, message: types.Message):
+        if message.from_user.id != int(ADMIN_ID):
+            await message.answer("У вас нет прав доступа к этой команде.")
+            return
+
+        user_count = await get_user_count(self.pool)
+        active_user_count = await self.get_active_user_count()
+
+        response = (
+            f"Кількість користувачів: {user_count}\n"
+            f"Кількість активних користувачів: {active_user_count}"
+        )
+        await message.answer(response)
 
     async def get_active_user_count(self):
         async with self.pool.acquire() as connection:
@@ -71,29 +92,6 @@ class Handlers:
             """
             active_user_count = await connection.fetchval(query)
             return active_user_count
-
-    async def stats(self, message: types.Message):
-        if message.from_user.id != ADMIN_ID:
-            await message.answer("У вас нет прав доступа к этой команде.")
-            return
-
-        user_count = await get_user_count(self.pool)
-        active_user_count = await get_active_user_count(self.pool)
-
-        response = (
-            f"Кількість користувачів: {user_count}\n"
-            f"Кількість активних користувачів: {active_user_count}"
-        )
-        await message.answer(response)
-
-    async def update_last_activity(self, user_id):
-        async with self.pool.acquire() as connection:
-            query = """
-            UPDATE users
-            SET last_activity = NOW()
-            WHERE id = $1
-            """
-            await connection.execute(query, user_id)
 
     async def start_broadcast(self, message: types.Message):
         if not await is_admin(self.pool, message.from_user.id):
@@ -109,9 +107,7 @@ class Handlers:
             try:
                 await self.bot.send_message(user_id, text_to_broadcast)
             except Exception as e:
-                print(f"Не вдалося відправити повідомлення на адресу {user_id}: {e}")
+                print(
+                    f"Не вдалося відправити повідомлення на адресу {user_id}: {e}")
 
         await message.reply("Повідомлення успішно відправлено всім користувачам!")
-
-
-
